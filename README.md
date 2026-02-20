@@ -99,6 +99,8 @@ chmod 755 /www/wwwroot/your-site/.theme
 chmod 644 /www/wwwroot/your-site/.theme/*
 ```
 
+（若您使用宝塔平台或其他自动化工具，可能会在根目录下生成index.html。删除即可！）
+
 ### 配置 Nginx
 
 Nginx配置文件中，关于/www/wwwroot/your-site的部分必须完整正确替换，否则可能出现404的情况。
