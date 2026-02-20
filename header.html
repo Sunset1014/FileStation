@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>File Station</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230071e3'><path d='M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z'/></svg>">
+<style>
+/* ============================================================
+ *  CSS Variables — Light theme (default)
+ * ============================================================ */
+:root {
+  --accent: #0071e3;
+  --accent-hover: #0077ed;
+  --bg-primary: #fff;
+  --bg-secondary: #f5f5f7;
+  --bg-hover: #f0f0f2;
+  --bg-search: #f5f5f7;
+  --text-primary: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --text-tertiary: #aeaeb2;
+  --border-color: #e8e8ed;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.04);
+  --shadow-lg: 0 20px 60px rgba(0,0,0,.15);
+  --max-width: 960px;
+  --radius: 10px;
+  --radius-sm: 8px;
+  --tr: .2s ease;
+  --ff: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+  --fm: 'SF Mono', SFMono-Regular, Consolas, Menlo, monospace;
+}
+
+/* ============================================================
+ *  Dark theme — auto (system preference)
+ * ============================================================ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #141414;
+    --bg-hover: #1c1c1e;
+    --bg-search: #1c1c1e;
+    --text-primary: #f5f5f7;
+    --text-secondary: #a1a1a6;
+    --text-tertiary: #636366;
+    --border-color: #2c2c2e;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.2);
+    --shadow-lg: 0 20px 60px rgba(0,0,0,.5);
+  }
+}
+
+/* ============================================================
+ *  Dark theme — manual override
+ * ============================================================ */
+:root[data-theme="dark"] {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #141414;
+  --bg-hover: #1c1c1e;
+  --bg-search: #1c1c1e;
+  --text-primary: #f5f5f7;
+  --text-secondary: #a1a1a6;
+  --text-tertiary: #636366;
+  --border-color: #2c2c2e;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.2);
+  --shadow-lg: 0 20px 60px rgba(0,0,0,.5);
+}
+
+/* ============================================================
+ *  Reset & Base
+ * ============================================================ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { font-size: 15px; -webkit-font-smoothing: antialiased; }
+body {
+  font-family: var(--ff);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+a { color: inherit; text-decoration: none; }
+
+/* Hide Nginx autoindex raw output (h1 + hr + pre + hr) */
+body > pre,
+body > h1,
+body > hr { display: none !important; }
+
+/* ============================================================
+ *  Loading State
+ * ============================================================ */
+.fs-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  color: var(--text-tertiary);
+  gap: 16px;
+  font-size: .9rem;
+}
+.fs-loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid var(--border-color);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: fs-spin .8s linear infinite;
+}
+@keyframes fs-spin { to { transform: rotate(360deg); } }
+
+/* ============================================================
+ *  Layout
+ * ============================================================ */
+.fs-c { max-width: var(--max-width); margin: 0 auto; padding: 40px 24px 60px; }
+
+/* Header */
+.fs-hd {
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.fs-st {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fs-st svg { flex-shrink: 0; color: var(--accent); }
+
+/* Header action buttons */
+.fs-ha { display: flex; align-items: center; gap: 8px; }
+.fs-hb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--tr);
+}
+.fs-hb:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+/* ============================================================
+ *  Announcement Bar
+ * ============================================================ */
+.fs-ab {
+  display: none;
+  margin-bottom: 20px;
+  padding: 14px 18px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: .85rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  position: relative;
+}
+.fs-ab.fs-show { display: block; }
+.fs-ab .fs-ax {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 2px;
+}
+.fs-ab .fs-ax:hover { color: var(--text-primary); }
+.fs-at {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ============================================================
+ *  Breadcrumb
+ * ============================================================ */
+.fs-bc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: .85rem;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+.fs-bc a { color: var(--accent); font-weight: 500; transition: opacity var(--tr); }
+.fs-bc a:hover { opacity: .75; }
+.fs-bc .fs-sep { color: var(--text-tertiary); margin: 0 2px; user-select: none; }
+.fs-bc .fs-cur { color: var(--text-primary); font-weight: 500; }
+
+/* ============================================================
+ *  Search
+ * ============================================================ */
+.fs-sw { position: relative; margin-bottom: 20px; }
+.fs-si {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+.fs-s {
+  width: 100%;
+  padding: 11px 16px 11px 42px;
+  font-size: .9rem;
+  font-family: var(--ff);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-search);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--tr), box-shadow var(--tr);
+}
+.fs-s::placeholder { color: var(--text-tertiary); }
+.fs-s:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,113,227,.12);
+}
+
+/* ============================================================
+ *  File Table
+ * ============================================================ */
+.fs-tw {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.fs-t { width: 100%; border-collapse: collapse; }
+.fs-t th {
+  text-align: left;
+  font-size: .75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-tertiary);
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  user-select: none;
+}
+.fs-t th[data-sort] { cursor: pointer; transition: color var(--tr); }
+.fs-t th[data-sort]:hover { color: var(--accent); }
+.fs-sort-icon { margin-left: 4px; font-size: .6rem; opacity: .5; }
+.fs-t th.fs-sorted .fs-sort-icon { opacity: 1; color: var(--accent); }
+
+.fs-t th:nth-child(2), .fs-t td:nth-child(2) { text-align: right; }
+.fs-t th:nth-child(3), .fs-t td:nth-child(3) { text-align: right; }
+.fs-t th:nth-child(4), .fs-t td:nth-child(4) { text-align: center; width: 48px; }
+
+.fs-t td {
+  padding: 10px 16px;
+  font-size: .875rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+  transition: background var(--tr);
+}
+.fs-t tr:last-child td { border-bottom: none; }
+.fs-t tbody tr:hover td { background: var(--bg-hover); }
+
+/* File name cell */
+.fs-n { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.fs-n svg { flex-shrink: 0; width: 20px; height: 20px; }
+.fs-n a { transition: color var(--tr); word-break: break-all; }
+.fs-n a:hover { color: var(--accent); }
+.fs-n a.fs-pv { cursor: pointer; }
+.fs-n a.fs-pv:hover {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+
+/* Download button */
+.fs-dl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--text-tertiary);
+  transition: all var(--tr);
+  cursor: pointer;
+}
+.fs-dl:hover { color: var(--accent); background: rgba(0,113,227,.08); }
+.fs-dl svg { width: 16px; height: 16px; }
+
+/* Size & Time columns */
+.fs-sz {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--fm);
+  font-size: .8rem;
+  white-space: nowrap;
+}
+.fs-tm {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-size: .8rem;
+  white-space: nowrap;
+}
+
+/* Empty / no-results state */
+.fs-em {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-tertiary);
+  font-size: .9rem;
+}
+.fs-em.fs-hid { display: none; }
+
+/* Parent directory row */
+.fs-pr td { background: var(--bg-secondary); }
+.fs-pr .fs-n a { color: var(--text-secondary); font-weight: 400; }
+
+/* ============================================================
+ *  Preview Modal
+ * ============================================================ */
+.fs-mo {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0,0,0,.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.fs-mo.fs-show { display: flex; }
+
+.fs-md {
+  background: var(--bg-primary);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.fs-mh {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+.fs-mt {
+  font-size: .9rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin-right: 12px;
+}
+.fs-ma { display: flex; align-items: center; gap: 8px; }
+.fs-mb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--tr);
+}
+.fs-mb:hover { color: var(--accent); background: var(--bg-hover); }
+
+.fs-my {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  min-height: 200px;
+}
+.fs-my img {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: 8px;
+  object-fit: contain;
+}
+.fs-my video, .fs-my audio { max-width: 100%; border-radius: 8px; outline: none; }
+.fs-my audio { width: 100%; max-width: 500px; }
+.fs-my iframe { width: 100%; height: 70vh; border: none; border-radius: 8px; }
+.fs-my pre.fs-tp {
+  width: 100%;
+  max-height: 70vh;
+  overflow: auto;
+  padding: 20px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  font-family: var(--fm);
+  font-size: .82rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--text-primary);
+  text-align: left;
+}
+.fs-truncated {
+  display: block;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: rgba(245,158,11,.1);
+  border: 1px solid rgba(245,158,11,.3);
+  border-radius: 6px;
+  color: #f59e0b;
+  font-size: .8rem;
+  font-family: var(--ff);
+}
+
+/* ============================================================
+ *  Footer
+ * ============================================================ */
+.fs-ft {
+  text-align: center;
+  padding: 24px 16px;
+  font-size: .75rem;
+  color: var(--text-tertiary);
+}
+
+/* ============================================================
+ *  Responsive — Mobile
+ * ============================================================ */
+@media (max-width: 640px) {
+  .fs-c { padding: 24px 16px 48px; }
+  .fs-t th:nth-child(3), .fs-t td:nth-child(3) { display: none; }
+  .fs-t th, .fs-t td { padding: 10px 12px; }
+  .fs-bc { font-size: .78rem; padding: 8px 12px; }
+  .fs-md { max-width: 100%; border-radius: 10px; }
+  .fs-my { padding: 12px; }
+  .fs-hd { flex-wrap: wrap; gap: 12px; }
+}
+
+/* ============================================================
+ *  Print
+ * ============================================================ */
+@media print {
+  .fs-hd, .fs-sw, .fs-ab, .fs-mo, .fs-ft, .fs-loading { display: none !important; }
+  .fs-dl { visibility: hidden; }
+  .fs-tw { box-shadow: none; border: 1px solid #999; }
+  .fs-c { max-width: 100%; padding: 0; }
+  body { background: #fff; color: #000; }
+}
+</style>
+</head>
+<body>
+<div class="fs-c">
+
+<!-- Loading placeholder (hidden by JS after init) -->
+<div class="fs-loading" id="jLD">
+  <div class="fs-loading-spinner"></div>
+  <span>正在加载文件列表…</span>
+</div>
+
+<!-- Header -->
+<header class="fs-hd" id="jHD" style="display:none">
+  <div class="fs-st">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    File Station
+  </div>
+  <div class="fs-ha">
+    <button class="fs-hb" id="jTH" title="切换主题" aria-label="切换深色/浅色主题">
+      <!-- Sun icon (shown in dark mode → click to go light) -->
+      <svg class="fs-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <!-- Moon icon (shown in light mode → click to go dark) -->
+      <svg class="fs-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <button class="fs-hb" id="jAT" title="公告" aria-label="展开公告" aria-expanded="false">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    </button>
+    <a class="fs-hb" href="https://github.com/Sunset1014/FileStation" target="_blank" rel="noopener noreferrer" title="GitHub" aria-label="GitHub 仓库">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+    </a>
+  </div>
+</header>
+
+<!-- Announcement bar -->
+<div class="fs-ab" id="jAB" role="alert">
+  <button class="fs-ax" id="jAC" aria-label="关闭公告">&times;</button>
+  <div class="fs-at">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    公告
+  </div>
+  <div id="jAX">欢迎访问 File Station！这里是公告区域，你可以在 header.html 中编辑此处内容。</div>
+</div>
+
+<!-- Breadcrumb -->
+<nav class="fs-bc" id="jBC" aria-label="路径导航" style="display:none"></nav>
+
+<!-- Search -->
+<div class="fs-sw" id="jSW" style="display:none">
+  <svg class="fs-si" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+  <label for="jS" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">搜索文件</label>
+  <input class="fs-s" id="jS" type="text" placeholder="搜索文件或文件夹…" autocomplete="off" aria-label="搜索文件或文件夹">
+</div>
+
+<!-- File Table -->
+<div class="fs-tw" id="jTW" style="display:none">
+  <table class="fs-t" role="grid">
+    <thead>
+      <tr>
+        <th data-sort="name">名称 <span class="fs-sort-icon">▲</span></th>
+        <th data-sort="size">大小 <span class="fs-sort-icon"></span></th>
+        <th data-sort="date">修改时间 <span class="fs-sort-icon"></span></th>
+        <th aria-label="操作"></th>
+      </tr>
+    </thead>
+    <tbody id="jFL"></tbody>
+  </table>
+  <div class="fs-em fs-hid" id="jEM">没有找到匹配的文件</div>
+</div>
+
+</div>
+
+<!-- Preview Modal -->
+<div class="fs-mo" id="jMO" role="dialog" aria-modal="true" aria-label="文件预览">
+  <div class="fs-md">
+    <div class="fs-mh">
+      <div class="fs-mt" id="jMT"></div>
+      <div class="fs-ma">
+        <a class="fs-mb" id="jMD" title="下载" download aria-label="下载文件">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </a>
+        <button class="fs-mb" id="jMC" title="关闭" aria-label="关闭预览">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="fs-my" id="jMB"></div>
+  </div>
+</div>
+
+<script src="/___theme___/fs.js"></script>
