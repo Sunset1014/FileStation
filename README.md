@@ -101,6 +101,7 @@ chmod 644 /www/wwwroot/your-site/.theme/*
 
 ### 配置 Nginx
 
+Nginx配置文件中，关于/www/wwwroot/your-site的部分必须完整正确替换，否则可能出现404的情况。
 将以下配置加入你的站点 `server` 块（完整模板见 `nginx.conf`）：
 
 ```nginx
